@@ -69,7 +69,6 @@ class WebAppUsage {
     const selectedDate = DateTime.local().setZone(this.companyTimezone);
     const fromDate = selectedDate.startOf(this.options.this).toISO();
     const toDate = selectedDate.endOf(this.options.this).toISO();
-    // console.log('date', fromDate, toDate, this.options.this);
     return this.api.get('/api/1.0/stats/category-total', {
       params: {
         company: this.companyId,
@@ -85,6 +84,7 @@ class WebAppUsage {
     });
   }
 
+  // map categories data with users
   mapUserCategories(category, user) {
     const data = {};
     data.name = category.name;
@@ -110,6 +110,7 @@ class WebAppUsage {
     return data;
   }
 
+  // convert seconds to duration
   humanizeDuration(value) {
     const units = ['hour', 'minute'];
     const unitsStrings = ['h', 'm'];
@@ -154,6 +155,7 @@ class WebAppUsage {
       }),
     );
 
+    // get categories data for users
     const stats$ = users$.pipe(
       switchMap((users) => {
         const requests = [];

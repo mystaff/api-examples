@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import axios from 'axios';
 import yargs from 'yargs';
+import chalk from 'chalk';
 import { from, throwError, combineLatest } from 'rxjs';
 import { map, switchMap, catchError } from 'rxjs/operators';
 import { Duration, DateTime } from 'luxon';
@@ -14,7 +15,9 @@ class WebAppUsage {
       .option('g', {
         alias: 'group-name', describe: 'group name', type: 'string', demandOption: true,
       })
-      .option('t', { alias: 'this', describe: 'date range', type: 'string', default: 'day' })
+      .option('t', {
+        alias: 'this', describe: 'date range', type: 'string', default: 'day',
+      })
       .argv;
 
     this.api = axios.create({
@@ -24,7 +27,7 @@ class WebAppUsage {
 
   // login request
   login() {
-    console.log('logging in ....');
+    console.log(chalk.green('logging in ....'));
     return this.api.post('/api/1.0/authorization/login', {
       deviceId: 'nodejs',
       email: process.env.USERNAME,
@@ -34,7 +37,7 @@ class WebAppUsage {
 
   // get all groups request
   getAllGroups() {
-    console.log('get all groups ....');
+    console.log(chalk.green('get all groups ....'));
     return this.api.get('/api/1.0/tags', {
       params: {
         company: this.companyId,
@@ -45,7 +48,7 @@ class WebAppUsage {
 
   // get users by group request
   getUsersByGroupId(groupId) {
-    console.log(`get all users for group: ${groupId} ....`);
+    console.log(chalk.green(`get all users for group: ${groupId} ....`));
     return this.api.get('/api/1.0/users', {
       params: {
         company: this.companyId,
@@ -62,7 +65,7 @@ class WebAppUsage {
 
   // get get category total by user id request
   getCategoryTotalByUserId(userId) {
-    console.log(`get all categories for user: ${userId} ....`);
+    console.log(chalk.green(`get all categories for user: ${userId} ....`));
     const selectedDate = DateTime.local().setZone(this.companyTimezone);
     const fromDate = selectedDate.startOf(this.options.this).toISO();
     const toDate = selectedDate.endOf(this.options.this).toISO();
@@ -123,7 +126,7 @@ class WebAppUsage {
     return parts.join(' ');
   }
 
-  handleRequest() {
+  processRequest() {
     // login and get all groups
     const groups$ = from(this.login()).pipe(
       map((response) => response.data.data),
@@ -177,10 +180,13 @@ class WebAppUsage {
       next: (stats) => {
         console.log('data', stats);
       },
-      error: (val) => console.log(`Error: ${val}`),
+      error: (val) => {
+        console.log(chalk.red(`Error: ${val}`));
+        process.exit();
+      },
     });
   }
 }
 
 const webAppUsage = new WebAppUsage();
-webAppUsage.handleRequest();
+webAppUsage.processRequest();

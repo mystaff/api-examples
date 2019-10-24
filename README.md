@@ -1,7 +1,7 @@
 # api-examples
 
 ## web-app-usage report:
-First create .env file in the root folder and add the following into it:
+First create `.env` file in the root folder and add the following into it:
 ```
 USERNAME={email}
 PASSWORD={password}

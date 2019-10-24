@@ -1,10 +1,10 @@
 #!/usr/bin/env node
+
 import axios from 'axios';
+import { combineLatest, from, throwError } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import yargs from 'yargs';
-import chalk from 'chalk';
-import { from, throwError, combineLatest } from 'rxjs';
-import { map, switchMap, catchError } from 'rxjs/operators';
-import { Duration, DateTime } from 'luxon';
+import { dateRange, humanizeDuration, log } from '../utils/utils';
 
 require('dotenv').config();
 
@@ -27,7 +27,7 @@ class WebAppUsage {
 
   // login request
   login() {
-    console.log(chalk.green('logging in ....'));
+    log('logging in ....', 'green');
     return this.api.post('/api/1.0/authorization/login', {
       deviceId: 'nodejs',
       email: process.env.USERNAME,
@@ -37,7 +37,7 @@ class WebAppUsage {
 
   // get all groups request
   getAllGroups() {
-    console.log(chalk.green('get all groups ....'));
+    log('get all groups ....', 'green');
     return this.api.get('/api/1.0/tags', {
       params: {
         company: this.companyId,
@@ -48,7 +48,7 @@ class WebAppUsage {
 
   // get users by group request
   getUsersByGroupId(groupId) {
-    console.log(chalk.green(`get all users for group: ${groupId} ....`));
+    log(`get all users for group: ${groupId} ....`, 'green');
     return this.api.get('/api/1.0/users', {
       params: {
         company: this.companyId,
@@ -65,10 +65,8 @@ class WebAppUsage {
 
   // get get category total by user id request
   getCategoryTotalByUserId(userId) {
-    console.log(chalk.green(`get all categories for user: ${userId} ....`));
-    const selectedDate = DateTime.local().setZone(this.companyTimezone);
-    const fromDate = selectedDate.startOf(this.options.this).toISO();
-    const toDate = selectedDate.endOf(this.options.this).toISO();
+    log(`get all categories for user: ${userId} ....`, 'green');
+    const { fromDate, toDate } = dateRange(this.companyTimezone, this.options.this);
     return this.api.get('/api/1.0/stats/category-total', {
       params: {
         company: this.companyId,
@@ -103,27 +101,10 @@ class WebAppUsage {
       default:
         data.rating = 'Productive';
     }
-    data.timeWorked = this.humanizeDuration(category.total);
+    data.timeWorked = humanizeDuration(category.total);
     data.totalTimeDecimal = (category.total / 60 / 60);
     data.totalTimeMinutes = Math.floor(category.total / 60);
     return data;
-  }
-
-  // convert seconds to duration
-  humanizeDuration(value) {
-    const units = ['hour', 'minute'];
-    const unitsStrings = ['h', 'm'];
-    let dur = (value instanceof Duration ? value : Duration.fromMillis(value * 1000)).normalize();
-    const parts = [];
-    units.forEach((unit, index) => {
-      const dd = Math.floor(dur.as(unit));
-      dur = dur.minus({ [unit]: dd });
-      if (dd > 0) {
-        parts.push(`${dd}${unitsStrings[index]}`);
-      }
-      return false;
-    });
-    return parts.join(' ');
   }
 
   processRequest() {
@@ -179,10 +160,10 @@ class WebAppUsage {
 
     stats$.subscribe({
       next: (stats) => {
-        console.log('data', stats);
+        log(stats);
       },
       error: (val) => {
-        console.log(chalk.red(`Error: ${val}`));
+        log(`Error: ${val}`, 'red');
         process.exit();
       },
     });

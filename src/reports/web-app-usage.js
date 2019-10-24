@@ -87,24 +87,23 @@ class WebAppUsage {
   // map categories data with users
   mapUserCategories(category, user) {
     const data = {};
+    data.employee = user.name;
+    data.activityTracked = category.entity === 2 ? 'app' : 'web';
     data.name = category.name;
-    data.user = user.name;
     switch (true) {
       case category.score <= 0:
-        data.score = 'Unrated';
+        data.rating = 'Unrated';
         break;
       case category.score > 0 && category.score <= 2:
-        data.score = 'Unproductive';
+        data.rating = 'Unproductive';
         break;
       case category.score > 2 && category.score <= 3:
-        data.score = 'Neutral';
+        data.rating = 'Neutral';
         break;
       default:
-        data.score = 'Productive';
+        data.rating = 'Productive';
     }
-    data.entity = category.entity === 2 ? 'app' : 'web';
-    data.time = category.total;
-    data.duration = this.humanizeDuration(category.total);
+    data.timeWorked = this.humanizeDuration(category.total);
     data.totalTimeDecimal = (category.total / 60 / 60);
     data.totalTimeMinutes = Math.floor(category.total / 60);
     return data;

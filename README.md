@@ -1,14 +1,22 @@
 # api-examples
 
 ## web-app-usage report:
-First create `.env` file in the root folder and add the following into it:
+
+## Requirements
+
+You need to install nodejs v12
+
+### Installation
+```bash
+$ npm install
+```
+Create `.env` file in the root folder and add the following into it:
 ```
 USERNAME={email}
 PASSWORD={password}
 ```
 
-Then run the following command line:
-
+### Usage
 `npm run web-app-usage -- --group-name="Design" --this=day`
 * `--group-name` is the group name
 * `--this` is the date range, could be `day`, `week` or `month`

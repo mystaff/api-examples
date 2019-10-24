@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 import axios from 'axios';
 import yargs from 'yargs';
-import { from, throwError } from 'rxjs';
+import { from, throwError, combineLatest } from 'rxjs';
 import { map, switchMap, catchError } from 'rxjs/operators';
+import { Duration, DateTime } from 'luxon';
 
 require('dotenv').config();
 
 class WebAppUsage {
   constructor() {
     this.options = yargs
-      .usage('Usage: -n <group-name>')
-      .option('n', {
+      .usage('Usage: -g <group-name>')
+      .option('g', {
         alias: 'group-name', describe: 'group name', type: 'string', demandOption: true,
       })
+      .option('t', { alias: 'this', describe: 'date range', type: 'string', default: 'day' })
       .argv;
 
     this.api = axios.create({
@@ -22,7 +24,7 @@ class WebAppUsage {
 
   // login request
   login() {
-    console.log('Logining ....');
+    console.log('logging in ....');
     return this.api.post('/api/1.0/authorization/login', {
       deviceId: 'nodejs',
       email: process.env.USERNAME,
@@ -43,7 +45,7 @@ class WebAppUsage {
 
   // get users by group request
   getUsersByGroupId(groupId) {
-    console.log('get all users ....');
+    console.log(`get all users for group: ${groupId} ....`);
     return this.api.get('/api/1.0/users', {
       params: {
         company: this.companyId,
@@ -58,12 +60,76 @@ class WebAppUsage {
     });
   }
 
+  // get get category total by user id request
+  getCategoryTotalByUserId(userId) {
+    console.log(`get all categories for user: ${userId} ....`);
+    const selectedDate = DateTime.local().setZone(this.companyTimezone);
+    const fromDate = selectedDate.startOf(this.options.this).toISO();
+    const toDate = selectedDate.endOf(this.options.this).toISO();
+    // console.log('date', fromDate, toDate, this.options.this);
+    return this.api.get('/api/1.0/stats/category-total', {
+      params: {
+        company: this.companyId,
+        fields: 'entity,name,score,userId',
+        'filter[total]': '60_',
+        from: fromDate,
+        to: toDate,
+        limit: 400,
+        sort: '_total',
+        user: userId,
+        token: this.token,
+      },
+    });
+  }
+
+  mapUserCategories(category, user) {
+    const data = {};
+    data.name = category.name;
+    data.user = user.name;
+    switch (true) {
+      case category.score <= 0:
+        data.score = 'Unrated';
+        break;
+      case category.score > 0 && category.score <= 2:
+        data.score = 'Unproductive';
+        break;
+      case category.score > 2 && category.score <= 3:
+        data.score = 'Neutral';
+        break;
+      default:
+        data.score = 'Productive';
+    }
+    data.entity = category.entity === 2 ? 'app' : 'web';
+    data.time = category.total;
+    data.duration = this.humanizeDuration(category.total);
+    data.totalTimeDecimal = (category.total / 60 / 60);
+    data.totalTimeMinutes = Math.floor(category.total / 60);
+    return data;
+  }
+
+  humanizeDuration(value) {
+    const units = ['hour', 'minute'];
+    const unitsStrings = ['h', 'm'];
+    let dur = (value instanceof Duration ? value : Duration.fromMillis(value * 1000)).normalize();
+    const parts = [];
+    units.forEach((unit, index) => {
+      const dd = Math.floor(dur.as(unit));
+      dur = dur.minus({ [unit]: dd });
+      if (dd > 0) {
+        parts.push(`${dd}${unitsStrings[index]}`);
+      }
+      return false;
+    });
+    return parts.join(' ');
+  }
+
   handleRequest() {
     // login and get all groups
     const groups$ = from(this.login()).pipe(
       map((response) => response.data.data),
       switchMap((user) => {
         this.companyId = user.companies[0].id;
+        this.companyTimezone = user.companies[0].timezone;
         this.token = user.token;
         return from(this.getAllGroups());
       }),
@@ -78,7 +144,6 @@ class WebAppUsage {
         if (!selectedGroup) {
           return throwError(`Group ${this.options['group-name']} doesn't exist`);
         }
-        console.log('Getting all users for group: ', selectedGroup.id);
         return from(this.getUsersByGroupId(selectedGroup.id))
           .pipe(
             map((response) => response.data.data),
@@ -87,12 +152,30 @@ class WebAppUsage {
     );
 
     const stats$ = users$.pipe(
-      map((user) => user[0].name),
+      switchMap((users) => {
+        const requests = [];
+        users.forEach((user) => {
+          requests.push(this.getCategoryTotalByUserId(user.id));
+        });
+        return combineLatest(requests).pipe(
+          map((responses) => {
+            const data = [];
+            responses.forEach((res) => {
+              const userCategory = res.data.data.category.map((category) => {
+                const user = users.find((u) => u.id === category.userId[0]);
+                return this.mapUserCategories(category, user);
+              });
+              data.push(...userCategory);
+            });
+            return data;
+          }),
+        );
+      }),
     );
 
     stats$.subscribe({
-      next: (user) => {
-        console.log('next!!!', user);
+      next: (stats) => {
+        console.log('data', stats);
       },
       error: (val) => console.log(`Error: ${val}`),
     });

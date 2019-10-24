@@ -11,5 +11,12 @@ module.exports = {
         "ignoreUrls": true
       }
     ],
+    "no-param-reassign": [
+      0,
+      {
+        "props": false
+      }
+    ],
+    "class-methods-use-this": 0,
   }
 };

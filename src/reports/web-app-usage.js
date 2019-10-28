@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 
 import axios from 'axios';
-import { combineLatest, from, throwError } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
 import yargs from 'yargs';
 import { dateRange, humanizeDuration, log } from '../utils/utils';
 
@@ -26,29 +24,45 @@ class WebAppUsage {
   }
 
   // login request
-  login() {
-    log('logging in ....', 'green');
+  async login() {
+    log('logging in ....');
     return this.api.post('/api/1.0/authorization/login', {
       deviceId: 'nodejs',
       email: process.env.USERNAME,
       password: process.env.PASSWORD,
+    }).then(async (response) => {
+      this.companyId = response.data.data.companies[0].id;
+      this.companyTimezone = response.data.data.companies[0].timezone;
+      this.token = response.data.data.token;
+      return true;
+    }).catch((error) => {
+      console.log(error.response.data.message);
     });
   }
 
   // get all groups request
-  getAllGroups() {
-    log('get all groups ....', 'green');
+  async getAllGroups() {
+    log('get all groups ....');
     return this.api.get('/api/1.0/tags', {
       params: {
         company: this.companyId,
         token: this.token,
       },
+    }).then(async (response) => {
+      const groups = response.data.data;
+      const selectedGroup = groups.find((group) => group.name === this.options['group-name']);
+      if (!selectedGroup) {
+        throw (new Error(`Group ${this.options['group-name']} doesn't exist`));
+      }
+      return selectedGroup;
+    }).catch((error) => {
+      console.log(error.response ? error.response.data.message : error);
     });
   }
 
   // get users by group request
-  getUsersByGroupId(groupId) {
-    log(`get all users for group: ${groupId} ....`, 'green');
+  async getUsersByGroupId(groupId) {
+    log(`get all users for group: ${groupId} ....`);
     return this.api.get('/api/1.0/users', {
       params: {
         company: this.companyId,
@@ -60,12 +74,17 @@ class WebAppUsage {
         'filter[0][show-on-reports]': 1,
         token: this.token,
       },
+    }).then(async (response) => {
+      return response.data.data;
+    }).catch((error) => {
+      console.log(error.response.data.message);
     });
   }
 
   // get get category total by user id request
-  getCategoryTotalByUserId(userId) {
-    log(`get all categories for user: ${userId} ....`, 'green');
+  async getCategoryTotalByUserId(userId) {
+    log(`get all categories for user: ${userId} ....`);
+
     const { fromDate, toDate } = dateRange(this.companyTimezone, this.options.this);
     return this.api.get('/api/1.0/stats/category-total', {
       params: {
@@ -107,66 +126,34 @@ class WebAppUsage {
     return data;
   }
 
-  processRequest() {
+  async processRequest() {
     // login and get all groups
-    const groups$ = from(this.login()).pipe(
-      map((response) => response.data.data),
-      switchMap((user) => {
-        this.companyId = user.companies[0].id;
-        this.companyTimezone = user.companies[0].timezone;
-        this.token = user.token;
-        return from(this.getAllGroups());
-      }),
-      catchError((val) => throwError(val.response ? val.response.data.message : val)),
-    );
+    const isLoggedIn = await this.login();
+    if (isLoggedIn) {
+      // check if the group name exists and get the group's users;
+      const selectedGroup = await this.getAllGroups();
+      const users = await this.getUsersByGroupId(selectedGroup.id);
 
-    // check if the group name exists and get the group's users;
-    const users$ = groups$.pipe(
-      switchMap((res) => {
-        const groups = res.data.data;
-        const selectedGroup = groups.find((group) => group.name === this.options['group-name']);
-        if (!selectedGroup) {
-          return throwError(`Group ${this.options['group-name']} doesn't exist`);
-        }
-        return from(this.getUsersByGroupId(selectedGroup.id))
-          .pipe(
-            map((response) => response.data.data),
-          );
-      }),
-    );
+      // get categories data for users
+      const requests = [];
+      users.forEach((user) => {
+        requests.push(this.getCategoryTotalByUserId(user.id));
+      });
 
-    // get categories data for users
-    const stats$ = users$.pipe(
-      switchMap((users) => {
-        const requests = [];
-        users.forEach((user) => {
-          requests.push(this.getCategoryTotalByUserId(user.id));
+      // performing multiple concurrent requests
+      axios.all(requests).then((responses) => {
+        const data = [];
+        responses.forEach((res) => {
+          const userCategory = res.data.data.category.map((category) => {
+            const user = users.find((u) => u.id === category.userId[0]);
+            return this.mapUserCategories(category, user);
+          });
+          data.push(...userCategory);
         });
-        return combineLatest(requests).pipe(
-          map((responses) => {
-            const data = [];
-            responses.forEach((res) => {
-              const userCategory = res.data.data.category.map((category) => {
-                const user = users.find((u) => u.id === category.userId[0]);
-                return this.mapUserCategories(category, user);
-              });
-              data.push(...userCategory);
-            });
-            return data;
-          }),
-        );
-      }),
-    );
-
-    stats$.subscribe({
-      next: (stats) => {
-        log(stats);
-      },
-      error: (val) => {
-        log(`Error: ${val}`, 'red');
-        process.exit();
-      },
-    });
+        // return the final data;
+        log(data);
+      });
+    }
   }
 }
 

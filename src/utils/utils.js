@@ -1,5 +1,4 @@
 
-import chalk from 'chalk';
 import { DateTime, Duration } from 'luxon';
 
 // convert seconds to duration
@@ -19,8 +18,8 @@ export function humanizeDuration(value) {
   return parts.join(' ');
 }
 
-export function log(string, color = null) {
-  console.log(color ? chalk.keyword(color)(string) : string);
+export function log(string) {
+  console.log(string);
 }
 
 export function dateRange(companyTimezone, range) {

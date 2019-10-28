@@ -36,7 +36,7 @@ class WebAppUsage {
       this.token = response.data.data.token;
       return true;
     }).catch((error) => {
-      console.log(error.response.data.message);
+      log(error.response.data.message, true);
     });
   }
 
@@ -56,7 +56,7 @@ class WebAppUsage {
       }
       return selectedGroup;
     }).catch((error) => {
-      console.log(error.response ? error.response.data.message : error);
+      log(error.response ? error.response.data.message : error, true);
     });
   }
 
@@ -74,10 +74,8 @@ class WebAppUsage {
         'filter[0][show-on-reports]': 1,
         token: this.token,
       },
-    }).then(async (response) => {
-      return response.data.data;
-    }).catch((error) => {
-      console.log(error.response.data.message);
+    }).then((response) => response.data.data).catch((error) => {
+      log(error.response.data.message, true);
     });
   }
 

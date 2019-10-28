@@ -18,8 +18,11 @@ export function humanizeDuration(value) {
   return parts.join(' ');
 }
 
-export function log(string) {
+export function log(string, error) {
   console.log(string);
+  if (error) {
+    process.exit(1);
+  }
 }
 
 export function dateRange(companyTimezone, range) {

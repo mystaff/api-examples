@@ -12,7 +12,7 @@ $ npm install
 ```
 Create `.env` file in the root folder and add the following into it:
 ```
-USERNAME={email}
+EMAIL={email}
 PASSWORD={password}
 ```
 

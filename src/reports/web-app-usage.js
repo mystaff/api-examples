@@ -28,7 +28,7 @@ class WebAppUsage {
     log('logging in ....');
     return this.api.post('/api/1.0/authorization/login', {
       deviceId: 'nodejs',
-      email: process.env.USERNAME,
+      email: process.env.EMAIL,
       password: process.env.PASSWORD,
     }).then(async (response) => {
       this.companyId = response.data.data.companies[0].id;

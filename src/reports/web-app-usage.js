@@ -91,7 +91,7 @@ class WebAppUsage {
         'filter[total]': '60_',
         from: fromDate,
         to: toDate,
-        limit: 400,
+        limit: 200,
         sort: '_total',
         user: userId,
         token: this.token,

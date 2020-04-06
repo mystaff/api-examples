@@ -18,6 +18,13 @@ PASSWORD={password}
 ```
 
 ### Usage
+
+#### Web App Usage
 `npm run web-app-usage -- --group-name="Design" --this=day`
 * `--group-name` is the group name
+* `--this` is the date range, could be `day`, `week` or `month`
+
+#### User Status
+`npm run user-status -- --user=XnzzIhV4rQAEf12 --this=day`
+* `--user` is specific user id or comma-separated list of user IDs
 * `--this` is the date range, could be `day`, `week` or `month`

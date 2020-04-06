@@ -1,5 +1,6 @@
 
 import { DateTime, Duration } from 'luxon';
+import util from 'util';
 
 // convert seconds to duration
 export function humanizeDuration(value) {
@@ -15,11 +16,19 @@ export function humanizeDuration(value) {
     }
     return false;
   });
+  if (value === 0) {
+    return '0m';
+  }
+  if (value < 60) {
+    return '<1m';
+  }
   return parts.join(' ');
 }
 
 export function log(string, error) {
+  util.inspect.defaultOptions.depth = null;
   console.log(string);
+  // console.dir(string, { depth: null });
   if (error) {
     process.exit(1);
   }

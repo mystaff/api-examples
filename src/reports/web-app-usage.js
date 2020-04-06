@@ -30,13 +30,17 @@ class WebAppUsage {
       deviceId: 'nodejs',
       email: process.env.EMAIL,
       password: process.env.PASSWORD,
+      totpCode: process.env.TWOFACODE,
     }).then(async (response) => {
+      if (response.data.data.status === 'totpNeeded') {
+        log('2FA code is required', true);
+      }
       this.companyId = response.data.data.companies[0].id;
       this.companyTimezone = response.data.data.companies[0].timezone;
       this.token = response.data.data.token;
       return true;
     }).catch((error) => {
-      log(error.response.data.message, true);
+      log(error, true);
     });
   }
 

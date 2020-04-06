@@ -25,6 +25,6 @@ PASSWORD={password}
 * `--this` is the date range, could be `day`, `week` or `month`
 
 #### User Status
-`npm run user-status -- --user=XnzzIhV4rQAEf12 --this=day`
+`npm run user-status -- --date-range=this-day`
 * `--user` is specific user id or comma-separated list of user IDs
-* `--this` is the date range, could be `day`, `week` or `month`
+* `--date-range` is the date range, could be `this-day`, `this-week` or `this-month`

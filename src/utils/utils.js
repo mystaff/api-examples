@@ -35,8 +35,24 @@ export function log(string, error) {
 }
 
 export function dateRange(companyTimezone, range) {
+  let type;
+  switch (range) {
+    case 'today':
+    case 'this-day':
+      type = 'day';
+      break;
+    case 'this-week':
+      type = 'week';
+      break;
+    case 'this-month':
+      type = 'month';
+      break;
+    default:
+      type = range;
+      break;
+  }
   const selectedDate = DateTime.local().setZone(companyTimezone);
-  const fromDate = selectedDate.startOf(range).toISO();
-  const toDate = selectedDate.endOf(range).toISO();
+  const fromDate = selectedDate.startOf(type).toISO();
+  const toDate = selectedDate.endOf(type).toISO();
   return { fromDate, toDate };
 }

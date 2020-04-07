@@ -77,7 +77,7 @@ class UserSummary {
       },
     }).then((response) => {
       this.nextPage = response.data.paging ? response.data.paging.next : null;
-      this.totalUsers = response.data.paging.totalCount;
+      this.totalUsers = response.data.paging ? response.data.paging.totalCount : 1;
       return response.data.data;
     }).catch((error) => {
       log(error.response.data.message, true);

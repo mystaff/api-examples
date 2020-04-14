@@ -36,6 +36,7 @@ class UserSummary {
     this.nextPage = 0;
     this.totalUsers = 0;
     this.data = [];
+    this.groups = [];
   }
 
   // login request
@@ -84,7 +85,21 @@ class UserSummary {
     });
   }
 
-  // get all users
+  // get all groups request
+  async getAllGroups() {
+    log('get all groups ....');
+    return this.api.get('/api/1.0/tags', {
+      params: {
+        company: this.companyId,
+        token: this.token,
+        limit: LIMIT,
+      },
+    }).then((response) => response.data.data).catch((error) => {
+      log(error.response.data.message, true);
+    });
+  }
+
+  // get all users worklogs
   async getUsersWorklogs(userIds) {
     log('get all users worklogs ....');
     const { fromDate, toDate } = dateRange(this.companyTimezone, this.options['date-range']);
@@ -181,6 +196,7 @@ class UserSummary {
     // loop for users
     users.forEach((user) => {
       // set the default values for each user
+      const groups = this.groups.filter((group) => user.tagIds.includes(group.id));
       data.push({
         userId: user.id,
         name: user.name,
@@ -190,7 +206,9 @@ class UserSummary {
         totalProductiveTime: 0,
         totalUnProductiveTime: 0,
         totalNeutralTime: 0,
+        totalUnratedTime: 0,
         categories: [],
+        groups: groups.map((group) => ({ id: group.id, name: group.name })),
       });
       userids.push(user.id);
     });
@@ -222,6 +240,7 @@ class UserSummary {
       userInfo.totalProductiveTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.productive]);
       userInfo.totalUnProductiveTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.unproductive]);
       userInfo.totalNeutralTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.neutral]);
+      userInfo.totalUnratedTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.unrated]);
     });
 
     const usersCategories = await this.getCategoryTotalByUserId(userids.join(','));
@@ -242,7 +261,7 @@ class UserSummary {
       }, 500);
     } else {
       // return the final data;
-      log(data);
+      log(this.data);
     }
   }
 
@@ -250,6 +269,7 @@ class UserSummary {
   async processRequest() {
     const isLoggedIn = await this.login();
     if (isLoggedIn) {
+      this.groups = await this.getAllGroups();
       this.paginationRequest();
     }
   }

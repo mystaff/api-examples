@@ -26,6 +26,9 @@ class UserSummary {
       .option('t', {
         alias: 'date-range', describe: 'date range', type: 'string', default: 'today',
       })
+      .option('a', {
+        alias: 'activity', describe: 'include activity list', type: 'boolean', default: true,
+      })
       .argv;
 
     this.api = axios.create({
@@ -42,6 +45,21 @@ class UserSummary {
   // login request
   async login() {
     log('logging in ....');
+    if (process.env.TOKEN) {
+      return this.api.get('/api/1.0/authorization', {
+        params: {
+          'no-workplaces': 1,
+          token: process.env.TOKEN,
+        },
+      }).then(async (response) => {
+        this.companyId = response.data.data.companies[0].id;
+        this.companyTimezone = response.data.data.companies[0].companyTimezone;
+        this.token = process.env.TOKEN;
+        return true;
+      }).catch((error) => {
+        log(error, true);
+      });
+    }
 
     return this.api.post('/api/1.0/authorization/login', {
       deviceId: 'nodejs',
@@ -197,19 +215,28 @@ class UserSummary {
     users.forEach((user) => {
       // set the default values for each user
       const groups = this.groups.filter((group) => user.tagIds.includes(group.id));
-      data.push({
+      let userObject = {
         userId: user.id,
         name: user.name,
         startTime: null,
         endTime: null,
         totalTime: 0,
         totalProductiveTime: 0,
-        totalUnProductiveTime: 0,
-        totalNeutralTime: 0,
-        totalUnratedTime: 0,
-        categories: [],
+      };
+
+      if (this.options.activity) {
+        userObject = Object.assign(userObject, {
+          totalUnProductiveTime: 0,
+          totalNeutralTime: 0,
+          totalUnratedTime: 0,
+          categories: [],
+        });
+      }
+
+      userObject = Object.assign(userObject, {
         groups: groups.map((group) => ({ id: group.id, name: group.name })),
       });
+      data.push(userObject);
       userids.push(user.id);
     });
 
@@ -238,19 +265,23 @@ class UserSummary {
       const userInfo = data[userIndex];
       userInfo.totalTime = humanizeDuration(userScoreRatio.total);
       userInfo.totalProductiveTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.productive]);
-      userInfo.totalUnProductiveTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.unproductive]);
-      userInfo.totalNeutralTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.neutral]);
-      userInfo.totalUnratedTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.unrated]);
-    });
-
-    const usersCategories = await this.getCategoryTotalByUserId(userids.join(','));
-    usersCategories.data.data.category.forEach((category) => {
-      const userIndex = data.findIndex((u) => u.userId === category.userId[0]);
-      if (userIndex > -1) {
-        const userInfo = data[userIndex];
-        userInfo.categories.push(this.mapUserCategories(category, userInfo));
+      if (this.options.activity) {
+        userInfo.totalUnProductiveTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.unproductive]);
+        userInfo.totalNeutralTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.neutral]);
+        userInfo.totalUnratedTime = humanizeDuration(userScoreRatio[PRODUCTIVITY_SCORES.unrated]);
       }
     });
+
+    if (this.options.activity) {
+      const usersCategories = await this.getCategoryTotalByUserId(userids.join(','));
+      usersCategories.data.data.category.forEach((category) => {
+        const userIndex = data.findIndex((u) => u.userId === category.userId[0]);
+        if (userIndex > -1) {
+          const userInfo = data[userIndex];
+          userInfo.categories.push(this.mapUserCategories(category, userInfo));
+        }
+      });
+    }
 
     this.data = this.data.concat(data);
 
